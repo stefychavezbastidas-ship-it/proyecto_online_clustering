@@ -1,0 +1,14 @@
+# Ignorar todo por defecto
+*
+
+# Permitir SOLO datasets
+!datasets/
+!datasets/**
+!datasets1/
+!datasets1/**
+
+# Ignorar basura común
+__pycache__/
+.venv/
+features_out/
+*.csv
