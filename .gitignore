@@ -1,11 +1,14 @@
 # Ignorar todo por defecto
 *
 
-# Permitir SOLO datasets
+# Permitir datasets
 !datasets/
 !datasets/**
 !datasets1/
 !datasets1/**
+
+# Permitir script HU (actividad individual)
+!hu_moments.py
 
 # Ignorar basura común
 __pycache__/
