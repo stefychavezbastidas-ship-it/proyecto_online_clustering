@@ -15,3 +15,7 @@ __pycache__/
 .venv/
 features_out/
 *.csv
+
+# Permitir CSV de características
+!features_out/
+!features_out/*.csv
