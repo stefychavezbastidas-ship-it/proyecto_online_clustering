@@ -1,75 +1,50 @@
 import numpy as np
 
-
 class OnlineConstrainedKMeans:
     """
-    K-Means ONLINE (instancia por instancia) con RESTRICCIÓN DE TAMAÑO.
-
-    Por cada instancia:
-      1) Calcula distancia a centroides
-      2) Selecciona el cluster más cercano con cupo
-      3) Actualiza el centroide en línea (promedio incremental)
+    Clustering online (procesa 1 muestra a la vez) con restricción de tamaño máximo por cluster.
+    - Asigna al centroide más cercano con cupo disponible.
+    - Actualiza centroide incrementalmente.
     """
-
-    def __init__(self, n_clusters: int, max_sizes):
+    def __init__(self, n_clusters, max_sizes, random_state=42):
         self.k = int(n_clusters)
-        self.max_sizes = np.asarray(max_sizes, dtype=int)
-
-        if len(self.max_sizes) != self.k:
-            raise ValueError("max_sizes debe tener longitud igual a n_clusters")
-        if np.any(self.max_sizes <= 0):
-            raise ValueError("max_sizes debe tener valores positivos")
+        self.max_sizes = np.array(max_sizes, dtype=int)
+        assert len(self.max_sizes) == self.k
+        self.random_state = int(random_state)
 
         self.centroids_ = None
         self.counts_ = np.zeros(self.k, dtype=int)
 
-    def reset(self):
-        self.centroids_ = None
-        self.counts_ = np.zeros(self.k, dtype=int)
+    def _init_centroids(self, X):
+        rng = np.random.default_rng(self.random_state)
+        idx = rng.choice(len(X), size=self.k, replace=False)
+        self.centroids_ = X[idx].astype(np.float32)
 
-    def partial_fit_one(self, x: np.ndarray):
-        """
-        Procesa UNA instancia y retorna:
-          - cluster_asignado
-          - info_debug (evidencia para online + restricción)
-        """
-        x = np.asarray(x, dtype=np.float32).reshape(1, -1)[0]
-
-        # Inicialización simple: centroides = primera instancia repetida
+    def partial_fit_predict(self, X):
+        X = np.asarray(X, dtype=np.float32)
         if self.centroids_ is None:
-            self.centroids_ = np.tile(x, (self.k, 1)).astype(np.float32)
+            self._init_centroids(X)
 
-        # Distancias a centroides
-        dists = np.linalg.norm(self.centroids_ - x, axis=1)
-        order = np.argsort(dists)
+        labels = -np.ones(len(X), dtype=int)
 
-        # Elegir el más cercano con cupo
-        chosen = None
-        tried = []
-        for c in order:
-            c = int(c)
-            tried.append(c)
-            if self.counts_[c] < self.max_sizes[c]:
-                chosen = c
-                break
+        for i, x in enumerate(X):
+            dists = np.linalg.norm(self.centroids_ - x, axis=1)
+            order = np.argsort(dists)
 
-        # Si todos están llenos, asigna al más cercano (fallback)
-        fallback_used = False
-        if chosen is None:
-            chosen = int(order[0])
-            fallback_used = True
+            chosen = None
+            for c in order:
+                if self.counts_[c] < self.max_sizes[c]:
+                    chosen = c
+                    break
 
-        # Actualización online (media incremental)
-        self.counts_[chosen] += 1
-        eta = 1.0 / float(self.counts_[chosen])
-        self.centroids_[chosen] = (1 - eta) * self.centroids_[chosen] + eta * x
+            if chosen is None:
+                chosen = order[0]  # fallback
 
-        info = {
-            "chosen": chosen,
-            "tried_order": tried,
-            "dists": dists.astype(float),
-            "counts": self.counts_.copy(),
-            "max_sizes": self.max_sizes.copy(),
-            "fallback_used": fallback_used,
-        }
-        return chosen, info
+            labels[i] = chosen
+
+            self.counts_[chosen] += 1
+            eta = 1.0 / self.counts_[chosen]
+            self.centroids_[chosen] = (1 - eta) * self.centroids_[chosen] + eta * x
+
+        return labels
+
