@@ -1,6 +1,4 @@
-"""
-classifier.py - Clasificador K-NN para animales y frutas - VERSIÓN CORREGIDA
-"""
+
 import numpy as np
 import pandas as pd
 import os
